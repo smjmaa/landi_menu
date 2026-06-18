@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منوی ارکیده</title>
+    <style>
+        :root { --bg: #ffffff; --text: #222; --header-bg: #f4f4f4; --item-bg: #fafafa; --accent: #b8860b; }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body { margin: 0; padding: 0; font-family: Tahoma, Arial, sans-serif; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+        
+        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #001f3f; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1); }
+        
+        /* لوگوی صفحه اول - شناور ساده */
+        .splash-logo { width: 250px; margin-bottom: 30px; animation: floating 3s ease-in-out infinite; }
+        @keyframes floating { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+        
+        .hint-container { position: absolute; bottom: 40px; color: #ffffff; text-align: center; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; opacity: 0.8; }
+        .typing-text { font-family: Tahoma, sans-serif; overflow: hidden; white-space: nowrap; animation: typing 2s steps(20, end); }
+        @keyframes typing { from { width: 0; } to { width: 100%; } }
+        
+        .bounce-arrow { display: inline-block; animation: bounce 1.5s infinite; animation-delay: 2s; opacity: 0; animation-fill-mode: forwards; font-size: 1.5rem; margin-bottom: 5px; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px) scale(1.1); } }
+        @keyframes fadeIn { to { opacity: 1; } }
+        
+        .slide-up { transform: translateY(-100%); }
+
+        .logo-glow { position: relative; display: inline-block; overflow: hidden; }
+        .logo-glow::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent); animation: logoFlash 4s infinite; }
+        @keyframes logoFlash { 0% { left: -100%; } 50%, 100% { left: 100%; } }
+
+        #main-content { display: none; height: 100vh; opacity: 0; transition: opacity 1s ease; }
+        .main-wrapper { display: flex; flex-direction: column; height: 100vh; padding: 10px; }
+        .sticky-header { text-align: center; padding-top: 10px; }
+        
+        /* لوگوی صفحه دوم - شناور و دارای تپش 5 درصدی */
+        .logo-img { width: 140px; animation: floating-scale 3s ease-in-out infinite; }
+        @keyframes floating-scale { 
+            0% { transform: translateY(0px) scale(1); } 
+            50% { transform: translateY(-10px) scale(1.05); } 
+            100% { transform: translateY(0px) scale(1); } 
+        }
+        
+        .menu-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin: 10px 0; background: var(--header-bg); padding: 4px; border-radius: 50px; }
+        .nav-item { padding: 5px 12px; border-radius: 50px; cursor: pointer; color: #777; font-size: 0.8rem; user-select: none; }
+        .nav-item.active { background: var(--accent); color: #fff; }
+        
+        #list-container { flex-grow: 1; overflow-y: auto; max-width: 500px; margin: 0 auto; scroll-snap-type: y mandatory; }
+        .item-wrapper { border-bottom: 1px solid #f0f0f0; padding: 15px 10px; scroll-snap-align: start; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; cursor: pointer; width: 100%; user-select: none; }
+        .item-name { font-size: 1rem; font-weight: 600; color: var(--text); flex-grow: 1; }
+        .item-price { color: var(--accent); font-weight: 700; font-size: 0.9rem; margin-right: 25px; white-space: nowrap; }
+        .item-desc { max-height: 0; overflow: hidden; transition: all 0.6s ease-in-out; color: #888; font-size: 0.85rem; line-height: 1.6; text-align: right; opacity: 0; }
+        .show-desc { max-height: 100px; margin-top: 10px; padding: 5px; background: var(--item-bg); border-radius: 5px; opacity: 1; }
+    </style>
+</head>
+<body ontouchstart="handleSwipe()">
+
+    <div id="splash-screen" onclick="hideSplash()">
+        <img src="Logo1.png" alt="لوگو" class="splash-logo">
+        <div class="hint-container">
+            <div class="bounce-arrow" style="animation: bounce 1.5s infinite, fadeIn 0.5s 2s forwards;">▲</div>
+            <div class="typing-text">به سمت بالا بکشید</div>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div class="main-wrapper">
+            <div class="sticky-header">
+                <img src="Logo2.jpg" alt="لوگو" class="logo-img logo-glow">
+                <div class="menu-nav">
+                    <div class="nav-item active" onclick="showMenu('hot', this)">بار گرم</div>
+                    <div class="nav-item" onclick="showMenu('cold', this)">بار سرد</div>
+                    <div class="nav-item" onclick="showMenu('tea', this)">چای‌ها</div>
+                    <div class="nav-item" onclick="showMenu('other', this)">سایر</div>
+                </div>
+            </div>
+            <div id="list-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const clickSound = new Audio('https://actions.google.com/sounds/v1/ui/click.ogg');
+        function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+        function playTick() { clickSound.currentTime = 0; clickSound.play().catch(e => {}); vibrate(20); }
+
+        let lastScrollTop = 0;
+        const container = document.getElementById('list-container');
+        container.addEventListener('scroll', () => {
+            let scrollTop = container.scrollTop;
+            if (Math.abs(scrollTop - lastScrollTop) > 60) { playTick(); lastScrollTop = scrollTop; }
+        });
+
+        function hideSplash() { 
+            vibrate(100); 
+            document.getElementById('splash-screen').classList.add('slide-up'); 
+            setTimeout(() => { 
+                document.getElementById('main-content').style.display = 'block'; 
+                document.getElementById('main-content').style.opacity = '1'; 
+            }, 800); 
+        }
+
+        const menuData = {
+            hot: [
+                {name: 'اسپرسو سینگل ربوستا', price: '90,000', desc: 'قهوه خالص با کافئین بالا'},
+                {name: 'اسپرسو دبل ربوستا', price: '110,000', desc: 'دوز دوبرابر اسپرسو برای انرژی بیشتر'},
+                {name: 'اسپرسو سینگل عربیکا', price: '150,000', desc: 'عطر و طعم خاص و دلنشین عربیکا'},
+                {name: 'اسپرسو دبل عربیکا', price: '200,000', desc: 'دو شات اسپرسو عربیکا با عطر عالی'},
+                {name: 'اسپرسو کورتادو', price: '130,000', desc: 'ترکیب اسپرسو با مقدار کمی شیر'},
+                {name: 'آمریکانو', price: '110,000', desc: 'اسپرسو رقیق شده با آب داغ'},
+                {name: 'لاته', price: '160,000', desc: 'اسپرسو با ترکیب شیر بخار زده'},
+                {name: 'موکا', price: '170,000', desc: 'اسپرسو با سس شکلات و شیر'},
+                {name: 'کاپوچینو', price: '170,000', desc: 'ترکیب کلاسیک اسپرسو، شیر و فوم'},
+                {name: 'کارامل ماکیاتو', price: '170,000', desc: 'اسپرسو با طعم دلپذیر کارامل'},
+                {name: 'قهوه دمی', price: '180,000', desc: 'قهوه تازه دم با روش‌های نوین'},
+                {name: 'قهوه ترک', price: '150,000', desc: 'قهوه غلیظ و اصیل سنتی'},
+                {name: 'قهوه یونانی', price: '160,000', desc: 'نوشیدنی خاص با عطر و طعم غنی'},
+                {name: 'نسکافه', price: '150,000', desc: 'قهوه فوری با طعمی ملایم'},
+                {name: 'شکلات داغ', price: '170,000', desc: 'نوشیدنی غلیظ و گرم شکلاتی'},
+                {name: 'شیر کاکائو', price: '150,000', desc: 'ترکیب گرم و دوست‌داشتنی شیر و کاکائو'},
+                {name: 'شیر داغ', price: '100,000', desc: 'شیر تازه گرم شده'}
+            ],
+            cold: [
+                {name: 'آیس لاته', price: '170,000', desc: 'اسپرسو سرد و شیر یخ‌زده'},
+                {name: 'آیس موکا', price: '200,000', desc: 'نوشیدنی سرد شکلاتی و اسپرسو'},
+                {name: 'آیس کارامل ماکیاتو', price: '190,000', desc: 'طعم خنک کارامل و قهوه'},
+                {name: 'آیس آمریکانو', price: '120,000', desc: 'اسپرسو سرد و آب یخ'},
+                {name: 'بلوکاراسائو', price: '150,000', desc: 'نوشیدنی خنک با طعم مرکبات'},
+                {name: 'پشن فروت', price: '150,000', desc: 'طعم خاص و استوایی'}
+            ],
+            tea: [
+                {name: 'چای سیاه', price: '50,000', desc: 'چای اصیل ایرانی'},
+                {name: 'چای سبز', price: '150,000', desc: 'نوشیدنی سلامتی و انرژی‌بخش'},
+                {name: 'چای ترش', price: '160,000', desc: 'سرشار از آنتی‌اکسیدان و ویتامین'},
+                {name: 'چای دارچین', price: '60,000', desc: 'گرم و خوش‌عطر'},
+                {name: 'چای زنجبیل', price: '70,000', desc: 'تند، گرم و تقویت‌کننده'},
+                {name: 'چای هل', price: '80,000', desc: 'با عطر خاص هل'},
+                {name: 'چای کوهی', price: '90,000', desc: 'آرام‌بخش و طبیعی'},
+                {name: 'چای لیمو عسل', price: '100,000', desc: 'ترکیب طلایی لیمو و عسل'},
+                {name: 'چای ماسالا', price: '150,000', desc: 'چای هندی ادویه‌ای'},
+                {name: 'چای کرک', price: '160,000', desc: 'چای شیر و ادویه مخصوص'},
+                {name: 'گل سرخ', price: '150,000', desc: 'آرام‌بخش و خوشبو'},
+                {name: 'بهارنارنج', price: '150,000', desc: 'تقویت اعصاب و آرام‌بخش'},
+                {name: 'به لیمو', price: '150,000', desc: 'آرام‌بخش و گوارا'},
+                {name: 'به و سیب', price: '150,000', desc: 'طعم میوه‌ای و دلپذیر'},
+                {name: 'آویشن', price: '150,000', desc: 'ضد سرماخوردگی و طبیعی'},
+                {name: 'پنیرک', price: '150,000', desc: 'گیاهی و مفید'},
+                {name: 'اسطوخودوس', price: '150,000', desc: 'کاهش استرس و خواب‌آور'},
+                {name: 'سنبل الطیب', price: '150,000', desc: 'تقویت سیستم عصبی'},
+                {name: 'بابونه', price: '150,000', desc: 'آرام‌بخش دستگاه گوارش'},
+                {name: 'توت فرنگی', price: '200,000', desc: 'طعم متفاوت و میوه‌ای'}
+            ],
+            other: []
+        };
+
+        function showMenu(cat, el) { playTick(); document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active')); el.classList.add('active'); document.getElementById('list-container').innerHTML = menuData[cat].length > 0 ? menuData[cat].map(i => `<div class="item-wrapper"><div class="item-row" onclick="toggleDesc(this)"><span class="item-name">${i.name}</span><span class="item-price">${i.price} تومان</span></div><div class="item-desc">${i.desc}</div></div>`).join('') : '<div style="text-align:center; padding:20px; opacity:0.5;">به زودی...</div>'; }
+        function toggleDesc(el) { playTick(); const desc = el.nextElementSibling; document.querySelectorAll('.item-desc').forEach(d => { if(d !== desc) d.classList.remove('show-desc') }); desc.classList.toggle('show-desc'); }
+        function handleSwipe() { let startY; window.addEventListener('touchstart', e => startY = e.touches[0].clientY); window.addEventListener('touchend', e => { if (startY - e.changedTouches[0].clientY > 50) hideSplash(); }); }
+        showMenu('hot', document.querySelector('.nav-item'));
+    </script>
+</body>
+</html>
